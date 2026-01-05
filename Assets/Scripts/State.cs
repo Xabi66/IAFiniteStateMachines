@@ -15,7 +15,8 @@ public class State {
         PURSUE,     // Perseguindo
         ATTACK,     // Atacando
         SLEEP,      // Durmindo
-        RUNAWAY     // Fuxindo
+        RUNAWAY,     // Fuxindo
+        LOOK  // Observando
     };
 
     // Enumeración dos eventos do ciclo de vida dun estado
@@ -182,13 +183,13 @@ public class Patrol : State
 {
     int currentIndex = -1;      // Índice do checkpoint actual
 
-    public Patrol(GameObject _npc, NavMeshAgent _agent, Animator _animator, Transform _player)
+    public Patrol(GameObject _npc, NavMeshAgent _agent, Animator _animator, Transform _player, int nextCheckpoint=-1)
         : base(_npc, _agent, _animator, _player)
     {
         name = STATE.PATROL;
         agent.speed = 2.0f;         // Velocidade de patrulla
         agent.isStopped = false;
-
+        if(nextCheckpoint!=-1){currentIndex=nextCheckpoint;} //Se o contrutor manda un checkPoint, seleccionao coma seguinte index
     }
 
     //=========================================================================
@@ -196,22 +197,26 @@ public class Patrol : State
     //=========================================================================
     public override void Enter()
     {
-        float lastDistance = Mathf.Infinity;    // Inicializa coa distancia máxima posible
-
-        // Itera sobre todos os checkpoints para atopar o máis próximo
-        for (int i = 0; i < GameEnvironment.Singleton.Checkpoints.Count; ++i)
+        //So se executa en caso de non recibir un index no construtor
+        if (currentIndex == -1)
         {
-            GameObject thisWP = GameEnvironment.Singleton.Checkpoints[i];       // Obtén o checkpoint actual
-            float distance = Vector3.Distance(npc.transform.position, thisWP.transform.position);  // Calcula a distancia
-            if (distance < lastDistance)        // Se é o máis próximo ata agora...
+            float lastDistance = Mathf.Infinity;    // Inicializa coa distancia máxima posible
+
+            // Itera sobre todos os checkpoints para atopar o máis próximo
+            for (int i = 0; i < GameEnvironment.Singleton.Checkpoints.Count; ++i)
             {
-                currentIndex = i - 1;           // Establece o índice (anterior para que o primeiro sexa este)
-                lastDistance = distance;        // Actualiza a distancia mínima
-            }
+                GameObject thisWP = GameEnvironment.Singleton.Checkpoints[i];       // Obtén o checkpoint actual
+                float distance = Vector3.Distance(npc.transform.position, thisWP.transform.position);  // Calcula a distancia
+                if (distance < lastDistance)        // Se é o máis próximo ata agora...
+                {
+                    currentIndex = i - 1;           // Establece o índice (anterior para que o primeiro sexa este)
+                    lastDistance = distance;        // Actualiza a distancia mínima
+                }
+            }     
         }
 
         animator.SetTrigger("isWalking");   // Activa a animación de camiñar
-        base.Enter();                   // Chama ao método Enter da clase base
+        base.Enter();                   // Chama ao método Enter da clase base     
     }
 
     //=========================================================================
@@ -231,6 +236,9 @@ public class Patrol : State
             {
                 currentIndex++;
             }
+            //Tras chegar ao checkpoint mira ao rredor
+            nextState = new Look(npc, agent, animator, player, currentIndex);
+            stage = EVENT.EXIT;
 
             // Establece o destino ao novo checkpoint
             agent.SetDestination(GameEnvironment.Singleton.Checkpoints[currentIndex].transform.position);
@@ -384,7 +392,6 @@ public class Attack : State
 //=========================================================================
 public class RunAway : State
 {
-
     GameObject safeLocation;        // Localización segura á que fuxir
 
     public RunAway(GameObject _npc, NavMeshAgent _agent, Animator _animator, Transform _player)
@@ -426,5 +433,69 @@ public class RunAway : State
     {
         animator.ResetTrigger("isRunning");     // Limpa o trigger da animación de correr
         base.Exit();                        // Chama ao método Exit da clase base
+    }
+}
+
+//=========================================================================
+// Estado LOOK (Mirar)
+// O NPC mira ao redor ao chegar ao checkpoint
+//=========================================================================
+public class Look : State
+{
+    float rotationSpeed = 360f; //Grados rotados por segundo
+    float rotated = 0f; //Rotacion actual         
+    int nextCheckpoint= -2; //Proximo checkpoint ao que se dirixirá o NPC
+    public Look(GameObject _npc, NavMeshAgent _agent, Animator _animator, Transform _player, int currentIndex)
+        : base(_npc, _agent, _animator, _player)
+    {
+        name = STATE.LOOK;
+        nextCheckpoint=currentIndex;
+    }
+
+    //=========================================================================
+    // Ao entrar no estado, o NPC para
+    //=========================================================================
+    public override void Enter()
+    {
+        animator.SetTrigger("isIdle");  // Activa o trigger da animación de inactividade
+        agent.isStopped = true;         // Detén o movemento do NPC
+        base.Enter();               // Chama ao método Enter da clase base
+    }
+
+    //=========================================================================
+    // O NPC xira ao redor para comprobar se ve ao xogador
+    //=========================================================================
+    public override void Update()
+    {
+        //Se calcula la rotacion en grados para cada frame
+        float rotation = rotationSpeed * Time.deltaTime;
+        //Se aplica esa rotación al NPC en el eje Y
+        npc.transform.Rotate(Vector3.up, rotation);
+        //Almacena esa rotación en el total
+        rotated += rotation;
+
+        if (CanSeePlayer()) // Se o NPC ve ao xogador...
+        {
+            nextState = new Pursue(npc, agent, animator, player);  // Crea un estado de persecución
+            stage = EVENT.EXIT;                                 // Marca para saír do estado actual
+        }
+
+        // Se o NPC xa rematou de xirar, volve a patrullar cara ao seguinte checkpoint
+        if (rotated >= 360f)
+        { 
+            nextState = new Patrol(npc, agent, animator, player, nextCheckpoint);  // Crea un estado de patrulla
+            stage = EVENT.EXIT;                                 // Marca para saír do estado actual
+        }
+    }
+
+    //=========================================================================
+    // Ao saír do estado, resetea o trigger da animación
+    //=========================================================================
+    public override void Exit()
+    {
+        rotated=0f;                     // Reinicia a cantidade rotada
+        animator.ResetTrigger("isIdle");// Limpa o trigger da animación
+        agent.isStopped = false;        // Reactiva o movemento do NPC
+        base.Exit();                    // Chama ao método Exit da clase base
     }
 }
