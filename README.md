@@ -18,7 +18,7 @@ Lista de cambios:
 
 -Modificado el estado **Patrol** para que al llegar a un checkpoint cambie al estado **Look** antes de volver a patrullar.
 
--Se ha desplazado el *SafePointRunawayScape* de la escena para que tenga menor tamaño y se ubique dentro de la caseta, de modo que el NPC huya a dentro de la misma.
+-Se ha desplazado el *SafePointRunawayState* de la escena para que tenga menor tamaño y se ubique dentro de la caseta, de modo que el NPC huya a dentro de la misma.
 
 [Ligazón](https://github.com/Xabi66/IAFiniteStateMachines/blob/main/Assets/Scripts/State.cs)
 
