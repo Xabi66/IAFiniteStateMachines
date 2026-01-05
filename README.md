@@ -20,7 +20,7 @@ Lista de cambios:
 
 -Se ha desplazado el *SafePointRunawayScape* de la escena para que tenga menor tamaño y se ubique dentro de la caseta, de modo que el NPC huya a dentro de la misma.
 
-[Ligazón](https://exemplo.com)
+[Ligazón](https://github.com/Xabi66/IAFiniteStateMachines/blob/main/Assets/Scripts/State.cs)
 
 
 ```csharp
